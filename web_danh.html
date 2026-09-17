@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ESP32 Dashboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f4fbf8;
+        color: #20332e;
+        font: 14px Arial;
+      }
+      .app {
+        max-width: 1050px;
+        margin: auto;
+        padding: 24px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .brand {
+        font-size: 23px;
+        font-weight: 800;
+        color: #16b882;
+      }
+      .brand small {
+        display: block;
+        color: #758b85;
+        font-size: 11px;
+        font-weight: 400;
+        margin-top: 4px;
+      }
+      .online {
+        color: #19ae79;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #19c487;
+        margin-right: 6px;
+      }
+      .cards,
+      .control-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .card,
+      .panel,
+      .control {
+        background: #fff;
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: 0 8px 24px #94b5a522;
+        border: 1px solid #e3f0eb;
+      }
+      .card h3,
+      .panel h2 {
+        margin: 0 0 5px;
+        font-size: 15px;
+      }
+      .muted {
+        color: #82928e;
+        font-size: 12px;
+      }
+      .gauge {
+        width: 145px;
+        height: 145px;
+        border-radius: 50%;
+        margin: 16px auto 10px;
+        display: grid;
+        place-items: center;
+        background: conic-gradient(#ff9c39 var(--v), #edf2ef 0);
+        position: relative;
+      }
+      .gauge:after {
+        content: "";
+        position: absolute;
+        inset: 14px;
+        background: #fff;
+        border-radius: 50%;
+      }
+      .gauge span {
+        z-index: 1;
+        text-align: center;
+        color: #354945;
+        font-size: 30px;
+      }
+      .gauge small {
+        font-size: 13px;
+        color: #8a9b96;
+      }
+      .temp {
+        --v: 57%;
+      }
+      .hum {
+        --v: 64%;
+        background: conic-gradient(#32c9a0 var(--v), #edf2ef 0);
+      }
+      .legend {
+        text-align: center;
+        font-size: 11px;
+        color: #82928e;
+      }
+      .controls {
+        margin-top: 16px;
+      }
+      .controls h2 {
+        font-size: 18px;
+        margin: 0;
+      }
+      .control-grid {
+        margin-top: 12px;
+      }
+      .control {
+        padding: 17px;
+        border-radius: 16px;
+      }
+      .control-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: #e4f8f1;
+        display: grid;
+        place-items: center;
+        color: #16b882;
+        font-size: 20px;
+      }
+      .state {
+        font-size: 11px;
+        font-weight: bold;
+        color: #9aa9a5;
+      }
+      .control h3 {
+        margin: 13px 0 5px;
+        font-size: 15px;
+      }
+      .control p {
+        margin: 0;
+        color: #82928e;
+        font-size: 12px;
+      }
+      .btn {
+        border: 0;
+        width: 100%;
+        margin-top: 15px;
+        border-radius: 10px;
+        padding: 12px;
+        background: #e8f7f2;
+        color: #169c73;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .control.active {
+        border-color: #31c99c;
+      }
+      .control.active .icon {
+        background: #31c99c;
+        color: #fff;
+      }
+      .control.active .state {
+        color: #18b27e;
+      }
+      .control.active .btn {
+        background: #31c99c;
+        color: #fff;
+      }
+      .panel {
+        margin-top: 16px;
+      }
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+      }
+      .chart {
+        height: 150px;
+      }
+      .chart canvas {
+        width: 100%;
+        height: 100%;
+      }
+      .devices {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .device {
+        padding: 13px;
+        background: #f3faf7;
+        border-radius: 10px;
+        margin-top: 10px;
+      }
+      .device b {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+      .device small {
+        color: #7d918a;
+        font-size: 11px;
+      }
+      .ok {
+        color: #19ae79;
+        font-size: 10px;
+        font-weight: bold;
+      }
+      .off {
+        color: #e56b6f;
+        font-size: 10px;
+        font-weight: bold;
+      }
+      @media (max-width: 650px) {
+        .app {
+          padding: 15px;
+        }
+        .cards,
+        .control-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="top">
+        <div class="brand">
+          ESP32 Dashboard<small>Temperature &amp; Humidity Monitor</small>
+        </div>
+        <div class="online"><span class="dot"></span>ESP32 ONLINE</div>
+      </header>
+      <section class="cards">
+        <article class="card">
+          <h3>Temperature</h3>
+          <div class="gauge temp">
+            <span><b id="t">28.4</b><small> °C</small></span>
+          </div>
+          <div class="legend">Phòng lab · Cập nhật tự động</div>
+        </article>
+        <article class="card">
+          <h3>Humidity</h3>
+          <div class="gauge hum">
+            <span><b id="h">64</b><small> %</small></span>
+          </div>
+          <div class="legend">Cảm biến SHT30 · Stable</div>
+        </article>
+      </section>
+      <section class="controls">
+        <h2>ESP32 Input Control</h2>
+        <div class="muted">Nhấn nút để gửi lệnh kích ngõ vào ESP32</div>
+        <div class="control-grid">
+          <article class="control" id="c1">
+            <div class="control-head">
+              <span class="icon">⏻</span><span class="state" id="s1">OFF</span>
+            </div>
+            <h3>Input 01</h3>
+            <p>Ngõ vào ESP32 số 1</p>
+            <button class="btn" data-id="1">Kích Input 01</button>
+          </article>
+          <article class="control" id="c2">
+            <div class="control-head">
+              <span class="icon">⏻</span><span class="state" id="s2">OFF</span>
+            </div>
+            <h3>Input 02</h3>
+            <p>Ngõ vào ESP32 số 2</p>
+            <button class="btn" data-id="2">Kích Input 02</button>
+          </article>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Environment History</h2>
+            <div class="muted">Biến thiên gần nhất</div>
+          </div>
+          <span class="ok">LIVE</span>
+        </div>
+        <div class="chart"><canvas id="chart"></canvas></div>
+      </section>
+      <section class="panel">
+        <h2>Devices</h2>
+        <div class="devices">
+          <div class="device">
+            <b>Phòng lab</b><small>ESP32-S3 · SHT30</small><br /><span
+              class="ok"
+              >OFFLINE</span
+            >
+          </div>
+          <div class="device">
+            <b>Kho thiết bị</b><small>ESP32-S3 · SHT30</small><br /><span
+              class="off"
+              >OFFLINE</span
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      let t = 28.4,
+        h = 64,
+        ts = [26, 26.5, 27.4, 29, 30, 29.2, 28.4],
+        hs = [72, 70, 68, 61, 56, 60, 64];
+      const cv = document.getElementById("chart"),
+        x = cv.getContext("2d");
+      function draw() {
+        let d = devicePixelRatio || 1,
+          w = cv.clientWidth,
+          z = cv.clientHeight;
+        cv.width = w * d;
+        cv.height = z * d;
+        x.setTransform(d, 0, 0, d, 0, 0);
+        x.clearRect(0, 0, w, z);
+        x.strokeStyle = "#e4eee9";
+        for (let i = 1; i < 5; i++) {
+          x.beginPath();
+          x.moveTo(0, (i * z) / 5);
+          x.lineTo(w, (i * z) / 5);
+          x.stroke();
+        }
+        function line(a, c) {
+          x.strokeStyle = c;
+          x.lineWidth = 3;
+          x.beginPath();
+          a.forEach((v, i) => {
+            let xx = (i * (w - 16)) / (a.length - 1) + 8,
+              yy = z - 12 - (v / 100) * (z - 25);
+            i ? x.lineTo(xx, yy) : x.moveTo(xx, yy);
+          });
+          x.stroke();
+        }
+        line(ts, "#ff9c39");
+        line(hs, "#32c9a0");
+      }
+      function update() {
+        t = +(t + (Math.random() - 0.5) * 0.2).toFixed(1);
+        h = Math.max(
+          35,
+          Math.min(85, Math.round(h + (Math.random() - 0.5) * 2)),
+        );
+        document.getElementById("t").textContent = t.toFixed(1);
+        document.getElementById("h").textContent = h;
+        document
+          .querySelector(".temp")
+          .style.setProperty("--v", Math.min(100, (t / 50) * 100) + "%");
+        document.querySelector(".hum").style.setProperty("--v", h + "%");
+        ts.shift();
+        ts.push(t);
+        hs.shift();
+        hs.push(h);
+        draw();
+      }
+      document.querySelectorAll(".btn").forEach(
+        (b) =>
+          (b.onclick = () => {
+            let i = b.dataset.id,
+              c = document.getElementById("c" + i),
+              on = c.classList.toggle("active");
+            document.getElementById("s" + i).textContent = on ? "ON" : "OFF";
+            b.textContent = on ? "Đang kích Input 0" + i : "Kích Input 0" + i;
+            window.dispatchEvent(
+              new CustomEvent("esp32-input-command", {
+                detail: { input: +i, state: on ? "ON" : "OFF" },
+              }),
+            );
+          }),
+      );
+      addEventListener("resize", draw);
+      draw();
+      setInterval(update, 5000);
+    </script>
+  </body>
+</html>
